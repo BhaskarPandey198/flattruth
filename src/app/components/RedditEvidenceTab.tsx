@@ -1,117 +1,187 @@
-import React from 'react';
-import { ArrowUp, MessageSquare, ExternalLink, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import type { RedditSignal, RiskLevel } from '@/data/auditData';
+'use client';
 
-function getSentimentStyle(sentiment: RiskLevel) {
-  if (sentiment === 'critical') return { color: '#BE123C', bg: '#FFF1F2', label: 'Critical Signal' };
-  if (sentiment === 'moderate') return { color: '#B45309', bg: '#FFFBEB', label: 'Warning Signal' };
-  return { color: '#047857', bg: '#ECFDF5', label: 'Positive Signal' };
+import React, { useState } from 'react';
+import { CheckCircle2, ChevronDown, ExternalLink, FileSearch, MessageSquare } from 'lucide-react';
+import type { EvidenceRecord } from '@/lib/evidence/types';
+
+interface Props {
+  records: EvidenceRecord[];
 }
 
-function SentimentIcon({ sentiment }: { sentiment: RiskLevel }) {
-  if (sentiment === 'critical') return <TrendingDown size={12} />;
-  if (sentiment === 'moderate') return <Minus size={12} />;
-  return <TrendingUp size={12} />;
+function isHttpUrl(value: string | null): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
 }
 
-function highlightKeywords(text: string, keywords: string[]) {
-  if (!keywords.length) return text;
-  const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-  const parts = text.split(pattern);
-  return parts.map((part, i) => {
-    const isKeyword = keywords.some(k => k.toLowerCase() === part.toLowerCase());
-    if (isKeyword) {
-      return (
-        <mark
-          key={`kw-${i}`}
-          className="rounded px-0.5"
-          style={{ background: '#FEF3C7', color: '#B45309', fontWeight: 600 }}
-        >
-          {part}
-        </mark>
-      );
-    }
-    return part;
-  });
+function formatLabel(value: string) {
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function RedditCard({ signal }: { signal: RedditSignal }) {
-  const style = getSentimentStyle(signal.sentiment);
+function scopeLabel(scope: EvidenceRecord['scope']) {
+  if (scope === 'society') return 'Society evidence';
+  if (scope === 'locality') return 'Locality context';
+  return 'City context';
+}
+
+function CommunityCard({ record }: { record: EvidenceRecord }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = record.snippet.length > 180;
+  const directUrl = isHttpUrl(record.sourceUrl) ? record.sourceUrl : null;
+  const destinationUrl = isHttpUrl(record.sourceDestinationUrl)
+    ? record.sourceDestinationUrl
+    : null;
+
   return (
-    <div
-      className="evidence-card rounded-xl border border-slate-200 p-4 transition-all duration-200 bg-white shadow-sm"
+    <article
+      className={`evidence-card rounded-2xl border p-5 transition-all duration-200 bg-white shadow-xs hover:shadow-md flex flex-col justify-between ${
+        record.includedInAnalysis
+          ? 'border-orange-200 border-l-4 border-l-orange-500'
+          : 'border-slate-200 border-l-4 border-l-slate-300'
+      }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200">
-            {signal.subreddit}
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200">
+              {formatLabel(record.platform)}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                record.includedInAnalysis
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-slate-50 text-slate-600 border-slate-200'
+              }`}
+            >
+              {record.includedInAnalysis ? <CheckCircle2 size={10} /> : <FileSearch size={10} />}
+              {record.includedInAnalysis ? 'Used in this assessment' : 'Browsing context only'}
+            </span>
+          </div>
+          {(record.dateLabel || record.date) && (
+            <span className="text-xs text-slate-400">{record.dateLabel || record.date}</span>
+          )}
+        </div>
+
+        <h4 className="text-sm font-bold text-slate-900 mb-1.5 leading-snug">{record.title}</h4>
+        <p className="text-[11px] font-semibold text-slate-500 mb-2">
+          {record.sourceName || record.sourceDomain || 'Indexed community source'} ·{' '}
+          {scopeLabel(record.scope)}
+        </p>
+
+        <p className="text-sm leading-relaxed text-slate-700 mb-3">
+          {long && !expanded ? `${record.snippet.slice(0, 180)}…` : record.snippet}
+          {long && (
+            <button
+              type="button"
+              onClick={() => setExpanded((current) => !current)}
+              className="ml-1 text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline"
+            >
+              {expanded ? 'Show less' : 'Read full snippet'}
+            </button>
+          )}
+        </p>
+
+        <div className="flex flex-wrap gap-1.5">
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600">
+            Quality: {formatLabel(record.sourceQuality)}
           </span>
-          <span
-            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border"
-            style={{ background: style.bg, color: style.color, borderColor: style.color + '40' }}
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600">
+            Identity: {formatLabel(record.identityMatch)}
+          </span>
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600">
+            Relevance {Math.round(record.relevanceScore * 100)}%
+          </span>
+          {record.topics.map((topic) => (
+            <span
+              key={`community-${record.id}-topic-${topic}`}
+              className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange-50 text-orange-800"
+            >
+              #{topic}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 mt-3">
+        {directUrl ? (
+          <a
+            href={directUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 hover:text-orange-900"
           >
-            <SentimentIcon sentiment={signal.sentiment} />
-            {style.label}
-          </span>
-        </div>
-        <span className="text-xs flex-shrink-0 text-slate-400">
-          {signal.date}
-        </span>
+            Open exact source <ExternalLink size={10} />
+          </a>
+        ) : destinationUrl ? (
+          <a
+            href={destinationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+          >
+            Open source destination <ExternalLink size={10} />
+          </a>
+        ) : (
+          <span className="text-[11px] text-slate-400">No direct URL supplied</span>
+        )}
       </div>
-
-      <h4 className="text-sm font-bold mb-2 leading-snug text-slate-900">
-        {signal.title}
-      </h4>
-
-      <p className="text-sm leading-relaxed mb-3 text-slate-600">
-        &ldquo;{highlightKeywords(signal.excerpt, signal.keywords)}&rdquo;
-      </p>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span className="flex items-center gap-1">
-            <ArrowUp size={11} className="text-orange-500" />
-            {signal.upvotes.toLocaleString('en-IN')} upvotes
-          </span>
-          <span className="flex items-center gap-1">
-            <MessageSquare size={11} />
-            {signal.comments} comments
-          </span>
-        </div>
-        <a
-          href={signal.url}
-          className="flex items-center gap-1 text-xs font-medium transition-colors duration-150 text-emerald-600 hover:text-emerald-700"
-        >
-          View thread <ExternalLink size={11} />
-        </a>
-      </div>
-    </div>
+    </article>
   );
 }
 
-interface Props {
-  signals: RedditSignal[];
-}
+export default function RedditEvidenceTab({ records }: Props) {
+  const [visibleCount, setVisibleCount] = useState(4);
+  const displayedRecords = records.slice(0, visibleCount);
+  const remainingCount = Math.max(0, records.length - visibleCount);
 
-export default function RedditEvidenceTab({ signals }: Props) {
-  if (!signals.length) {
+  if (!records.length) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <MessageSquare size={40} className="text-slate-300" />
         <p className="mt-3 text-sm font-semibold text-slate-700">
-          No Reddit signals yet
+          No community or web sources found
         </p>
         <p className="text-xs mt-1 text-slate-400">
-          Reddit and Twitter discussions for this society will appear here once indexed.
+          FlatTruth will not manufacture discussions when search results are sparse.
         </p>
       </div>
     );
   }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-      {signals.map(s => (
-        <RedditCard key={s.id} signal={s} />
-      ))}
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 text-xs text-slate-500 font-medium">
+        <span>Original community and general-web search results</span>
+        <span>
+          <strong className="text-slate-800">{records.length}</strong> public sources ·{' '}
+          <strong className="text-slate-800">
+            {records.filter((record) => record.includedInAnalysis).length}
+          </strong>{' '}
+          used in this assessment
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {displayedRecords.map((record) => (
+          <CommunityCard key={`community-record-${record.id}`} record={record} />
+        ))}
+      </div>
+
+      {remainingCount > 0 && (
+        <div className="flex justify-center pt-4 border-t border-slate-200">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((current) => Math.min(current + 4, records.length))}
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-xs"
+          >
+            Load more retrieved results ({remainingCount}) <ChevronDown size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

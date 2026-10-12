@@ -10,14 +10,16 @@ interface Props {
 }
 
 function getGaugeColor(level: RiskLevel) {
-  if (level === 'critical') return '#E11D48';
+  if (level === 'high') return '#E11D48';
   if (level === 'moderate') return '#D97706';
+  if (level === 'insufficient_evidence') return '#94A3B8';
   return '#059669';
 }
 
 function getRiskLabel(level: RiskLevel) {
-  if (level === 'critical') return 'Severe';
+  if (level === 'high') return 'High Risk';
   if (level === 'moderate') return 'Moderate';
+  if (level === 'insufficient_evidence') return 'Not Enough Direct Evidence';
   return 'Low Risk';
 }
 
@@ -53,15 +55,10 @@ export default function RiskGaugeChart({ score, level }: Props) {
         className="absolute inset-0 flex flex-col items-center justify-center"
         style={{ pointerEvents: 'none' }}
       >
-        <span
-          className="text-5xl font-extrabold tabular-nums leading-none"
-          style={{ color }}
-        >
+        <span className="text-5xl font-extrabold tabular-nums leading-none" style={{ color }}>
           {score}
         </span>
-        <span className="text-sm font-semibold mt-1 text-slate-400">
-          / 100
-        </span>
+        <span className="text-sm font-semibold mt-1 text-slate-400">/ 100</span>
         <span
           className="text-xs font-bold mt-1.5 px-2 py-0.5 rounded-full"
           style={{ background: `${color}18`, color }}

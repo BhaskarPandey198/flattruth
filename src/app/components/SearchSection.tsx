@@ -1,136 +1,163 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search, MapPin, ChevronDown, Loader2 } from 'lucide-react';
-import { QUICK_TRY_CHIPS, CITIES, type SocietyAuditData } from '@/data/auditData';
+import { CITIES } from '@/data/auditData';
+import { AUDIT_PRESETS, type AuditPreset } from '@/data/auditPresets';
 
 interface SearchSectionProps {
   activeChipId: string;
-  onChipSelect: (chipId: string, data: SocietyAuditData) => void;
+  submittedQuery: string;
+  selectedCity: string;
+  onCityChange: (city: string) => void;
+  onChipSelect: (preset: AuditPreset) => void;
   onSearch: (query: string, city: string) => void;
   isLoading: boolean;
 }
 
-export default function SearchSection({ activeChipId, onChipSelect, onSearch, isLoading }: SearchSectionProps) {
+export default function SearchSection({
+  activeChipId,
+  submittedQuery,
+  selectedCity,
+  onCityChange,
+  onChipSelect,
+  onSearch,
+  isLoading,
+}: SearchSectionProps) {
   const [query, setQuery] = useState('');
-  const [selectedCity, setSelectedCity] = useState('Bengaluru');
-  const [cityOpen, setCityOpen] = useState(false);
-  const cityRef = useRef<HTMLDivElement>(null);
+  const [isCityOpen, setIsCityOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSearch = () => {
-    if (query.trim()) onSearch(query.trim(), selectedCity);
-  };
+  useEffect(() => {
+    setQuery(submittedQuery);
+  }, [submittedQuery]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+
+    if (!query.trim()) {
+      inputRef.current?.focus();
+      return;
+    }
+
+    onSearch(query.trim(), selectedCity);
   };
 
   return (
-    <section className="pt-10 pb-6">
-      {/* Hero headline */}
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 text-slate-900">
-          Know the truth before you sign.
-        </h1>
-        <p className="text-base sm:text-lg max-w-2xl mx-auto text-slate-600">
-          Unfiltered risk audits for Indian housing societies — synthesized from verified tenant grievances and civic records.
-        </p>
-      </div>
+    <section className="pt-6 pb-4 text-center">
+      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+        Know the ground reality before you pay your deposit.
+      </h1>
+      <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed font-medium">
+        Independent risk audits grounded in retrieved reviews, community discussions, and
+        public-interest reporting.
+      </p>
 
-      {/* Search bar row */}
-      <div className="flex flex-col sm:flex-row gap-3 max-w-3xl mx-auto mb-5">
-        {/* City selector */}
-        <div className="relative flex-shrink-0" ref={cityRef}>
-          <button
-            type="button"
-            onClick={() => setCityOpen(v => !v)}
-            className="flex items-center gap-2 px-4 h-12 rounded-xl border border-slate-300 text-sm font-semibold w-full sm:w-auto transition-colors duration-150 bg-white text-slate-900 hover:border-slate-400"
-          >
-            <MapPin size={15} className="text-emerald-600" />
-            <span>{selectedCity}</span>
-            <ChevronDown size={14} className="text-slate-400" />
-          </button>
-          {cityOpen && (
-            <div className="absolute top-14 left-0 z-50 rounded-xl border border-slate-200 shadow-lg min-w-[180px] overflow-hidden bg-white">
-              {CITIES.map(city => (
-                <button
-                  key={city.id}
-                  type="button"
-                  onClick={() => { setSelectedCity(city.label); setCityOpen(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm transition-colors duration-100"
-                  style={{
-                    background: selectedCity === city.label ? '#ECFDF5' : 'transparent',
-                    color: selectedCity === city.label ? '#047857' : '#0F172A',
-                    fontWeight: selectedCity === city.label ? 600 : 400,
-                  }}
-                >
-                  {city.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Search input */}
-        <div className="flex-1 relative">
-          <Search
-            size={16}
-            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-          />
-          <input
-            type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search society name, locality, or pincode…"
-            className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-300 text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 bg-white text-slate-900 placeholder-slate-400"
-          />
-        </div>
-
-        {/* CTA button */}
-        <button
-          type="button"
-          onClick={handleSearch}
-          disabled={isLoading}
-          className="flex items-center justify-center gap-2 px-5 h-12 rounded-xl text-sm font-bold transition-all duration-150 disabled:opacity-60 flex-shrink-0 action-btn bg-emerald-600 text-white hover:bg-emerald-700"
-          style={{ minWidth: '200px' }}
+      {/* Main Search Bar */}
+      <div className="mt-6 max-w-3xl mx-auto relative">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col sm:flex-row items-center gap-2 p-1.5 rounded-2xl bg-white border border-slate-300 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-200/60 transition-all duration-200"
         >
-          {isLoading ? (
-            <>
-              <Loader2 size={15} className="animate-spin" />
-              <span>Auditing…</span>
-            </>
-          ) : (
-            <>
-              <Search size={15} />
-              <span>Generate Due-Diligence Audit</span>
-            </>
-          )}
-        </button>
-      </div>
+          {/* City Dropdown */}
+          <div className="relative w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setIsCityOpen((v) => !v)}
+              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 px-3.5 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 hover:border-slate-300 text-xs font-extrabold text-slate-800 border border-slate-200 transition-all duration-150 cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5">
+                <MapPin size={14} className="text-emerald-600" />
+                <span>{selectedCity}</span>
+              </div>
+              <ChevronDown size={13} className="text-slate-400" />
+            </button>
 
-      {/* Quick-try chips */}
-      <div className="flex flex-wrap gap-2 justify-center max-w-3xl mx-auto">
-        <span className="text-xs font-medium self-center mr-1 text-slate-400">
-          Quick try:
-        </span>
-        {QUICK_TRY_CHIPS.map(chip => (
+            {isCityOpen && (
+              <div className="absolute top-full left-0 mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-left animate-tab-reveal">
+                {CITIES.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      onCityChange(c.label);
+                      setIsCityOpen(false);
+                    }}
+                    className={`w-full px-3.5 py-2 text-xs font-bold text-left transition-colors flex items-center justify-between ${
+                      selectedCity === c.label
+                        ? 'bg-emerald-50 text-emerald-700 font-extrabold'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>{c.label}</span>
+                    {selectedCity === c.label && (
+                      <span className="text-emerald-600 text-xs">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Search Input: Accepts Any Society or PIN */}
+          <div className="relative flex-1 w-full">
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Type any society name, locality, or 6-digit PIN..."
+              className="w-full px-3 py-2.5 text-sm font-semibold text-slate-900 placeholder-slate-400 outline-none bg-transparent"
+              autoComplete="off"
+            />
+          </div>
+
+          {/* Audit Button */}
           <button
-            key={chip.id}
-            type="button"
-            onClick={() => onChipSelect(chip.id, chip.data)}
+            type="submit"
             disabled={isLoading}
-            className="chip-btn px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-150 disabled:opacity-50"
-            style={{
-              background: activeChipId === chip.id ? '#ECFDF5' : '#FFFFFF',
-              borderColor: activeChipId === chip.id ? '#10B981' : '#E2E8F0',
-              color: activeChipId === chip.id ? '#047857' : '#64748B',
-              fontWeight: activeChipId === chip.id ? 600 : 400,
-            }}
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-400 active:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:shadow-lg hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-150 cursor-pointer flex-shrink-0"
           >
-            {chip.label}
+            {isLoading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Auditing...</span>
+              </>
+            ) : (
+              <>
+                <Search size={14} />
+                <span>Generate Due-Diligence Audit</span>
+              </>
+            )}
           </button>
-        ))}
+        </form>
+
+        {/* Quick Try Chips Suite */}
+        <div className="flex items-center justify-center gap-2 mt-3.5 flex-wrap">
+          <span className="text-xs text-slate-500 font-extrabold">Quick try:</span>
+          {AUDIT_PRESETS.map((chip) => {
+            const isActive = activeChipId === chip.id;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => {
+                  setQuery(chip.query);
+                  onChipSelect(chip);
+                }}
+                disabled={isLoading}
+                className={`text-xs px-3.5 py-1.5 rounded-full font-bold transition-all duration-150 border cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
+                  isActive
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-500 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50/60 hover:shadow-xs'
+                } disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0`}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

@@ -3,91 +3,78 @@
 import React, { useEffect, useState } from 'react';
 
 const STAGES = [
-  { label: 'Parsing local map reviews and ratings...', from: 0, to: 30 },
-  { label: 'Scanning community threads for water & deposit disputes...', from: 31, to: 70 },
-  { label: 'Synthesizing risk signals & calculating Tenant Risk Index...', from: 71, to: 100 },
+  'Resolving the society and location...',
+  'Retrieving community, news, and review evidence...',
+  'Reviewing risk signals across public sources...',
 ];
 
 interface AuditLoadingOverlayProps {
   isVisible: boolean;
-  onComplete?: () => void;
 }
 
-export default function AuditLoadingOverlay({ isVisible, onComplete }: AuditLoadingOverlayProps) {
+export default function AuditLoadingOverlay({ isVisible }: AuditLoadingOverlayProps) {
   const [progress, setProgress] = useState(0);
-  const [stageIndex, setStageIndex] = useState(0);
-  const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
     if (!isVisible) {
       setProgress(0);
-      setStageIndex(0);
-      setFadeOut(false);
       return;
     }
 
-    const totalDuration = 2000;
-    const intervalMs = 20;
-    const steps = totalDuration / intervalMs;
-    let currentStep = 0;
+    setProgress(6);
+    const timer = window.setInterval(() => {
+      setProgress((current) => {
+        if (current >= 94) return current;
+        const remaining = 94 - current;
+        return Math.min(94, current + Math.max(1, Math.ceil(remaining / 10)));
+      });
+    }, 350);
 
-    const timer = setInterval(() => {
-      currentStep++;
-      const rawPct = (currentStep / steps) * 100;
-      const pct = Math.min(Math.round(rawPct), 100);
-      setProgress(pct);
+    return () => window.clearInterval(timer);
+  }, [isVisible]);
 
-      if (pct >= 71) setStageIndex(2);
-      else if (pct >= 31) setStageIndex(1);
-      else setStageIndex(0);
+  if (!isVisible) return null;
 
-      if (pct >= 100) {
-        clearInterval(timer);
-        setFadeOut(true);
-        setTimeout(() => {
-          onComplete?.();
-        }, 350);
-      }
-    }, intervalMs);
-
-    return () => clearInterval(timer);
-  }, [isVisible, onComplete]);
-
-  if (!isVisible && !fadeOut) return null;
+  const stageIndex = progress >= 71 ? 2 : progress >= 31 ? 1 : 0;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center"
       style={{
         background: 'rgba(15, 23, 42, 0.6)',
         backdropFilter: 'blur(8px)',
-        opacity: fadeOut ? 0 : 1,
-        pointerEvents: fadeOut ? 'none' : 'auto',
       }}
+      role="status"
+      aria-live="polite"
+      aria-label="Running evidence audit"
     >
-      <div className="rounded-2xl border border-slate-200 p-8 flex flex-col items-center gap-6 w-full max-w-md mx-4 bg-white shadow-xl">
-        {/* Animated shield icon */}
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-emerald-50 border border-emerald-200">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
+      <div className="mx-4 flex w-full max-w-md flex-col items-center gap-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#059669"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="animate-pulse"
+            aria-hidden="true"
+          >
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
         </div>
 
-        {/* Title */}
         <div className="text-center">
-          <h3 className="text-lg font-bold mb-1 text-slate-900">
-            Running Live Audit
-          </h3>
-          <p className="text-sm text-slate-500">
-            Aggregating public signals in real time
-          </p>
+          <h3 className="mb-1 text-lg font-bold text-slate-900">Running Live Audit</h3>
+          <p className="text-sm text-slate-500">Reviewing public sources for relevant evidence</p>
         </div>
 
-        {/* Progress bar */}
         <div className="w-full space-y-2">
-          <div className="w-full h-2 rounded-full overflow-hidden bg-slate-100">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full transition-all duration-100"
+              className="h-full rounded-full transition-all duration-300"
               style={{
                 width: `${progress}%`,
                 background: 'linear-gradient(90deg, #059669, #34D399)',
@@ -95,32 +82,29 @@ export default function AuditLoadingOverlay({ isVisible, onComplete }: AuditLoad
               }}
             />
           </div>
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium transition-all duration-300 text-emerald-700">
-              {STAGES[stageIndex]?.label}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-left text-xs font-medium text-emerald-700 transition-all duration-300">
+              {STAGES[stageIndex]}
             </p>
-            <span className="text-xs font-bold tabular-nums text-emerald-700">
-              {progress}%
-            </span>
+            <span className="text-xs font-bold tabular-nums text-emerald-700">{progress}%</span>
           </div>
         </div>
 
-        {/* Stage dots */}
-        <div className="flex items-center gap-3">
-          {STAGES.map((_, i) => (
-            <div key={i} className="flex items-center gap-1.5">
+        <div className="flex items-center gap-3" aria-hidden="true">
+          {STAGES.map((stage, index) => (
+            <div key={stage} className="flex items-center gap-1.5">
               <div
-                className="w-2 h-2 rounded-full transition-all duration-300"
+                className="h-2 w-2 rounded-full transition-all duration-300"
                 style={{
-                  background: i <= stageIndex ? '#059669' : '#E2E8F0',
-                  boxShadow: i === stageIndex ? '0 0 6px rgba(5,150,105,0.5)' : 'none',
-                  transform: i === stageIndex ? 'scale(1.3)' : 'scale(1)',
+                  background: index <= stageIndex ? '#059669' : '#E2E8F0',
+                  boxShadow: index === stageIndex ? '0 0 6px rgba(5,150,105,0.5)' : 'none',
+                  transform: index === stageIndex ? 'scale(1.3)' : 'scale(1)',
                 }}
               />
-              {i < STAGES.length - 1 && (
+              {index < STAGES.length - 1 && (
                 <div
-                  className="w-6 h-px transition-all duration-300"
-                  style={{ background: i < stageIndex ? '#059669' : '#E2E8F0' }}
+                  className="h-px w-6 transition-all duration-300"
+                  style={{ background: index < stageIndex ? '#059669' : '#E2E8F0' }}
                 />
               )}
             </div>

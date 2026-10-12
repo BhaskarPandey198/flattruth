@@ -1,51 +1,43 @@
+'use client';
+
 import React from 'react';
-import { Shield } from 'lucide-react';
-import AppLogo from '@/components/ui/AppLogo';
+import Image from 'next/image';
+import { Database, ShieldAlert } from 'lucide-react';
 
 export default function TopBar() {
   return (
-    <header
-      className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm"
-    >
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-16">
-        <div className="flex items-center justify-between h-16 gap-4">
-          {/* Brand */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <AppLogo size={32} />
-              <span className="text-xl font-bold tracking-tight hidden sm:block text-slate-900">
-                FlatTruth
-              </span>
+    <header className="w-full bg-white border-b border-slate-200/90 sticky top-0 z-50 shadow-xs m-0 p-0">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-16 h-14 sm:h-16 flex items-center justify-between">
+        {/* Brand with Sliced Shield Asset */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 relative flex-shrink-0 flex items-center justify-center">
+              <Image
+                src="/assets/images/app_logo.png"
+                alt="FlatTruth Logo"
+                width={30}
+                height={30}
+                className="w-7 h-7 sm:w-8 sm:h-8 object-contain"
+                priority
+              />
             </div>
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 text-xs font-medium text-slate-500 bg-slate-50">
-              <Shield size={11} />
-              <span>Unfiltered Rental Due Diligence</span>
-            </div>
+            <span className="font-black text-xl text-slate-900 tracking-tight">
+              Flat<span className="text-emerald-600">Truth</span>
+            </span>
           </div>
 
-          {/* Nav */}
-          <nav className="hidden lg:flex items-center gap-6">
-            {[
-              { href: '/', label: 'Audit Dashboard' },
-            ]?.map(item => (
-              <a
-                key={`nav-${item?.label}`}
-                href={item?.href}
-                className="text-sm font-medium transition-colors duration-150 text-emerald-600 hover:text-emerald-700"
-              >
-                {item?.label}
-              </a>
-            ))}
-          </nav>
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            <ShieldAlert size={12} className="text-slate-500" />
+            Unfiltered Rental Due Diligence
+          </span>
+        </div>
 
-          {/* Right: data source badge */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="hidden sm:inline">Live Public Signal Network (Verified)</span>
-              <span className="sm:hidden">Live Data</span>
-            </div>
-          </div>
+        {/* Evidence provenance badge */}
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs">
+            <Database size={12} className="text-emerald-600" />
+            <span>Source-linked public evidence</span>
+          </span>
         </div>
       </div>
     </header>

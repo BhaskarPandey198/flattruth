@@ -1,234 +1,388 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Send, Loader2, MessageCircle, Sparkles } from 'lucide-react';
-
-const QUICK_PROMPTS = [
-  'Water tanker frequency',
-  'Deposit refund track record',
-  'Bachelor & pet policy',
-  'Monsoon road conditions',
-];
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  Bot,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  Send,
+  Sparkles,
+} from 'lucide-react';
+import type { AssistantCitation, SocietyAuditData } from '@/data/auditData';
 
 interface TenantQAAssistantProps {
-  societyName: string;
-  societyContext: string;
+  auditData: SocietyAuditData;
 }
 
-interface QAAnswer {
-  text: string;
-  sourceNote: string;
+interface AssistantResult {
+  status: 'answered' | 'insufficient_evidence' | 'audit_expired' | 'error';
+  answer: string;
+  citations: AssistantCitation[];
+  additionalSearchPerformed: boolean;
 }
 
-// Local answers keyed by society name + prompt keyword
-const LOCAL_FALLBACK_ANSWERS: Record<string, Record<string, QAAnswer>> = {
-  'Prestige Falcon City': {
-    'Water tanker frequency': {
-      text: 'Private water tankers arrive daily at 6 AM and residents must manually fill overhead tanks; BWSSB Cauvery pipeline connection has been pending since Q3 2023 with no confirmed date. The RWA levied an additional ₹2,800/month tanker surcharge in April 2026 with zero prior notice to residents.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Deposit refund track record': {
-      text: 'Deposit deductions at Prestige Falcon City average ₹42,000 on a ₹1.1L deposit, with landlords citing full repainting (₹18K) and cleaning charges (₹9K) as common line items. Most tenants report no move-in inspection report was provided, making disputes very difficult to win.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Bachelor & pet policy': {
-      text: 'Approximately 60% of blocks enforce a strict no-bachelor policy, and gate security enforces a 10 PM visitor cut-off that residents describe as confrontational. Pet policies vary by block but are generally restrictive, with RWA requiring prior written approval.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Monsoon road conditions': {
-      text: 'The Konanakunte Cross main entrance road floods for 4–8 days every monsoon season, with BBMP Ward 183 storm drain repairs stalled for the third consecutive year as of September 2026. Residents report cars damaged in basement parking and children unable to attend school during peak monsoon weeks.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-  },
-  'Sobha Dream Acres': {
-    'Water tanker frequency': {
-      text: 'Sobha Dream Acres has a BWSSB municipal connection but residents on floors 10 and above report low water pressure during peak hours (7–9 AM), occasionally requiring tanker supplementation in summer months. The situation is significantly better than tanker-dependent societies.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Deposit refund track record': {
-      text: 'Deposit deductions average around 28% of the security amount, with painting charges of ₹12,000–₹22,000 being the most common dispute at move-out. Approximately 30% of move-out reviews mention painting deduction disputes, though the overall rate is below the Bengaluru market average.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Bachelor & pet policy': {
-      text: 'Bachelor tenants are permitted in designated blocks at Sobha Dream Acres, and the visitor policy has a more reasonable 11 PM cut-off compared to stricter societies. Pet policies are moderately flexible with prior RWA approval required.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Monsoon road conditions': {
-      text: 'The Balagere Road area does not experience severe flooding, but the already-congested road becomes significantly worse during heavy rain, adding 20–30 minutes to peak-hour commutes. No major civic infrastructure failures have been reported during monsoon seasons.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-  },
-  'DLF Phase 3': {
-    'Water tanker frequency': {
-      text: 'DLF Phase 3 benefits from a stable MCG municipal water supply with no tanker dependency reported by residents, making it one of the stronger aspects of this society. Minor pressure complaints exist in older blocks but do not require supplemental tanker arrangements.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Deposit refund track record': {
-      text: 'Deposit deductions average around 32% of the security amount, with landlords frequently citing wear and tear on ageing fixtures (the buildings are 15+ years old) as justification. Move-in documentation practices are inconsistent across landlords, making pre-move-in checklists essential.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Bachelor & pet policy': {
-      text: 'DLF Phase 3 has a relatively flexible visitor policy with no strict bachelor restrictions reported by current residents. The RWA rules are described as moderate and enforcement is less confrontational than many Bengaluru societies.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Monsoon road conditions': {
-      text: 'DLF Phase 3 roads are generally well-maintained during monsoon with no major flooding incidents reported; however, the Gurgaon-wide waterlogging during extreme rain events can affect access roads. The internal society roads drain adequately.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-  },
-  'Megapolis Smart Homes': {
-    'Water tanker frequency': {
-      text: 'PCMC municipal water supply arrives only once every 3 days under normal conditions, dropping to once every 4–5 days during summer (March–June), forcing residents to rely on private tankers costing ₹1,200–₹2,000 per month. A PCMC pipeline upgrade worth ₹42 crore is approved and expected by March 2027.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Deposit refund track record': {
-      text: 'Megapolis Smart Homes has a below-market deposit deduction rate averaging 25% of the security amount, and several landlords in this society provide move-in checklists — making it one of the better societies for deposit safety in Pune. Disputes are less common than the Bengaluru average.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Bachelor & pet policy': {
-      text: 'Bachelor tenants are permitted in all blocks at Megapolis Smart Homes, and the visitor policy has a midnight cut-off which residents describe as reasonable. The RWA is generally responsive to maintenance complaints within 48 hours.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-    'Monsoon road conditions': {
-      text: 'The Hinjawadi Road and NH-48 experience severe gridlock during monsoon as rain compounds the already-critical peak-hour congestion, with commutes stretching to 90 minutes for a 5km stretch. Internal society roads drain adequately but access to the main road is severely impacted.',
-      sourceNote: 'Audited from verified Google & Reddit community threads',
-    },
-  },
-};
+const PRESET_QUESTIONS = [
+  'Water tanker frequency & charges',
+  'Deposit refund track record',
+  'Monsoon road & traffic conditions',
+  'Bachelor and visitor policy',
+];
 
-function getAnswer(societyName: string, prompt: string): QAAnswer {
-  const societyAnswers = LOCAL_FALLBACK_ANSWERS[societyName];
-  if (societyAnswers) {
-    if (societyAnswers[prompt]) return societyAnswers[prompt];
-    const key = Object.keys(societyAnswers).find(k =>
-      k.toLowerCase().includes(prompt.toLowerCase()) ||
-      prompt.toLowerCase().includes(k.toLowerCase().split(' ')[0])
+const INSUFFICIENT_ANSWER =
+  "We didn't find enough reliable information to answer this confidently.";
+const REQUEST_FAILED_ANSWER = "We couldn't complete this request right now. Please try again.";
+
+function readMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== 'object') return fallback;
+  const data = payload as Record<string, unknown>;
+  if (typeof data.answer === 'string' && data.answer.trim()) return data.answer;
+  if (typeof data.message === 'string' && data.message.trim()) return data.message;
+  return fallback;
+}
+
+function readCitations(payload: unknown): AssistantCitation[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const citations = (payload as Record<string, unknown>).citations;
+  if (!Array.isArray(citations)) return [];
+
+  const validCitations = citations.filter((citation): citation is AssistantCitation => {
+    if (!citation || typeof citation !== 'object') return false;
+    const item = citation as Record<string, unknown>;
+    return (
+      typeof item.evidenceId === 'string' &&
+      typeof item.title === 'string' &&
+      typeof item.sourceDomain === 'string' &&
+      (item.sourceUrl === null || typeof item.sourceUrl === 'string') &&
+      (item.scope === 'society' || item.scope === 'locality' || item.scope === 'city')
     );
-    if (key) return societyAnswers[key];
-  }
-  return {
-    text: `Based on aggregated community signals for ${societyName}, this topic has been discussed across multiple tenant forums and review platforms. We recommend reviewing the detailed evidence tabs above for specific verified reports from current and former residents.`,
-    sourceNote: 'Audited from verified Google & Reddit community threads',
-  };
+  });
+
+  return Array.from(
+    new Map(validCitations.map((citation) => [citation.evidenceId, citation])).values()
+  );
 }
 
-export default function TenantQAAssistant({ societyName }: TenantQAAssistantProps) {
+export default function TenantQAAssistant({ auditData }: TenantQAAssistantProps) {
   const [question, setQuestion] = useState('');
-  const [submittedQuestion, setSubmittedQuestion] = useState('');
-  const [answer, setAnswer] = useState<QAAnswer | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<AssistantResult | null>(null);
+  const [askedTopic, setAskedTopic] = useState('');
+  const [isAnswering, setIsAnswering] = useState(false);
+  const [searchPhase, setSearchPhase] = useState<'dossier' | 'additional'>('dossier');
+  const activeController = useRef<AbortController | null>(null);
 
-  const handleSubmit = (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed || isLoading) return;
-    setSubmittedQuestion(trimmed);
-    setAnswer(null);
-    setIsLoading(true);
+  useEffect(() => {
+    activeController.current?.abort();
+    setResult(null);
+    setAskedTopic('');
     setQuestion('');
+    setIsAnswering(false);
+    setSearchPhase('dossier');
 
-    setTimeout(() => {
-      setAnswer(getAnswer(societyName, trimmed));
-      setIsLoading(false);
-    }, 1000);
+    return () => activeController.current?.abort();
+  }, [auditData.auditId]);
+
+  const handleAsk = async (queryText: string) => {
+    const normalizedQuestion = queryText.trim();
+    if (!normalizedQuestion || isAnswering || !auditData.auditId) return;
+
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
+
+    setAskedTopic(normalizedQuestion);
+    setIsAnswering(true);
+    setSearchPhase('dossier');
+    setResult(null);
+    const phaseTimer = window.setTimeout(() => setSearchPhase('additional'), 1_200);
+    let didTimeout = false;
+    const requestTimer = window.setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, 90_000);
+
+    try {
+      const response = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          auditId: auditData.auditId,
+          question: normalizedQuestion,
+          dossier: auditData.assistantDossier,
+        }),
+        signal: controller.signal,
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (controller.signal.aborted) {
+        if (didTimeout && activeController.current === controller) {
+          setResult({
+            status: 'error',
+            answer: REQUEST_FAILED_ANSWER,
+            citations: [],
+            additionalSearchPerformed: false,
+          });
+        }
+        return;
+      }
+
+      const responseStatus =
+        payload && typeof payload === 'object'
+          ? (payload as Record<string, unknown>).status
+          : undefined;
+      const responseCode =
+        payload && typeof payload === 'object'
+          ? (payload as Record<string, unknown>).code
+          : undefined;
+
+      if (response.status === 409 || responseCode === 'audit_expired') {
+        setResult({
+          status: 'audit_expired',
+          answer:
+            'This audit is no longer available. Run the society audit again before asking another question.',
+          citations: [],
+          additionalSearchPerformed: false,
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        setResult({
+          status: 'error',
+          answer: readMessage(
+            payload,
+            REQUEST_FAILED_ANSWER
+          ),
+          citations: [],
+          additionalSearchPerformed: Boolean(
+            (payload as Record<string, unknown> | null)?.additionalSearchPerformed
+          ),
+        });
+        return;
+      }
+
+      if (responseStatus === 'insufficient_evidence') {
+        setResult({
+          status: 'insufficient_evidence',
+          answer: readMessage(payload, INSUFFICIENT_ANSWER),
+          citations: readCitations(payload),
+          additionalSearchPerformed: Boolean(
+            (payload as Record<string, unknown> | null)?.additionalSearchPerformed
+          ),
+        });
+        return;
+      }
+
+      const answer = readMessage(payload, '');
+      if (!answer) {
+        setResult({
+          status: 'error',
+          answer: INSUFFICIENT_ANSWER,
+          citations: [],
+          additionalSearchPerformed: false,
+        });
+        return;
+      }
+
+      const citations = readCitations(payload);
+      if (citations.length === 0) {
+        setResult({
+          status: 'error',
+          answer: INSUFFICIENT_ANSWER,
+          citations: [],
+          additionalSearchPerformed: false,
+        });
+        return;
+      }
+
+      setResult({
+        status: 'answered',
+        answer,
+        citations,
+        additionalSearchPerformed: Boolean(
+          (payload as Record<string, unknown> | null)?.additionalSearchPerformed
+        ),
+      });
+    } catch {
+      if (controller.signal.aborted) {
+        if (didTimeout && activeController.current === controller) {
+          setResult({
+            status: 'error',
+            answer: REQUEST_FAILED_ANSWER,
+            citations: [],
+            additionalSearchPerformed: false,
+          });
+        }
+        return;
+      }
+      setResult({
+        status: 'error',
+        answer: REQUEST_FAILED_ANSWER,
+        citations: [],
+        additionalSearchPerformed: false,
+      });
+    } finally {
+      window.clearTimeout(phaseTimer);
+      window.clearTimeout(requestTimer);
+      if (activeController.current === controller) {
+        activeController.current = null;
+        setIsAnswering(false);
+        setQuestion('');
+      }
+    }
   };
 
-  const handleQuickPrompt = (prompt: string) => handleSubmit(prompt);
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSubmit(question);
-  };
+  const resultIsWarning =
+    result?.status === 'insufficient_evidence' ||
+    result?.status === 'audit_expired' ||
+    result?.status === 'error';
 
   return (
-    <section className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-slate-200 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-violet-50 border border-violet-200">
-          <MessageCircle size={18} className="text-violet-600" />
+    <div className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-purple-100 bg-purple-50 text-purple-600">
+          <Bot size={20} />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-slate-900">
-              Tenant Due-Diligence Assistant
-            </h3>
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200">
-              <Sparkles size={9} />
-              AI
+            <h3 className="text-base font-bold text-slate-900">Tenant Due-Diligence Assistant</h3>
+            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-700">
+              <Sparkles size={11} /> Grounded AI
             </span>
           </div>
           <p className="text-xs text-slate-500">
-            Ask anything about {societyName} — powered by community signals
+            Ask about {auditData.societyName} ({auditData.city}) — answers use retrieved evidence and at most one targeted public-source search
           </p>
         </div>
       </div>
 
-      <div className="p-5 space-y-4">
-        {/* Quick prompt tags */}
-        <div className="flex flex-wrap gap-2">
-          {QUICK_PROMPTS.map(prompt => (
-            <button
-              key={prompt}
-              type="button"
-              onClick={() => handleQuickPrompt(prompt)}
-              disabled={isLoading}
-              className="px-3 py-1.5 rounded-full border border-slate-200/60 text-xs font-medium transition-all duration-150 disabled:opacity-50 bg-slate-100 hover:bg-slate-200 text-slate-700"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-
-        {/* Input form */}
-        <form onSubmit={handleFormSubmit} className="flex gap-2">
-          <input
-            type="text"
-            value={question}
-            onChange={e => setQuestion(e.target.value)}
-            placeholder="Ask anything about this society (e.g., 'Is water safe in summer?', 'Deposit deduction history?')..."
-            disabled={isLoading}
-            className="flex-1 h-11 px-4 rounded-xl border border-slate-300 text-sm outline-none transition-all duration-150 focus:ring-2 focus:ring-violet-300 disabled:opacity-60 bg-white text-slate-900 placeholder-slate-400"
-          />
+      <div className="mb-4 flex flex-wrap gap-2">
+        {PRESET_QUESTIONS.map((item) => (
           <button
-            type="submit"
-            disabled={isLoading || !question.trim()}
-            className="flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-150 disabled:opacity-50 flex-shrink-0 bg-violet-50 border border-violet-200 text-violet-600 hover:bg-violet-100"
+            key={item}
+            type="button"
+            onClick={() => void handleAsk(item)}
+            disabled={isAnswering || !auditData.auditId}
+            className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Send size={15} />
+            {item}
           </button>
-        </form>
-
-        {/* Loading state */}
-        {isLoading && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-violet-200 bg-violet-50">
-            <Loader2 size={14} className="animate-spin flex-shrink-0 text-violet-600" />
-            <span className="text-sm text-violet-700">
-              Synthesizing 216 verified community records...
-            </span>
-          </div>
-        )}
-
-        {/* Answer display */}
-        {!isLoading && answer && (
-          <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-2">
-            <div className="flex items-start gap-2">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 bg-violet-100">
-                <Sparkles size={12} className="text-violet-600" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-violet-700">
-                  Re: {submittedQuestion}
-                </p>
-                <p className="text-sm leading-relaxed text-slate-700">
-                  {answer.text}
-                </p>
-                <p className="text-xs text-slate-500">
-                  ✓ {answer.sourceNote}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        ))}
       </div>
-    </section>
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleAsk(question);
+        }}
+        className="relative flex items-center gap-2"
+      >
+        <input
+          type="text"
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          placeholder={`Ask what the retrieved records say about ${auditData.societyName}...`}
+          maxLength={500}
+          disabled={isAnswering || !auditData.auditId}
+          className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-4 pr-12 text-sm text-slate-900 shadow-xs outline-none placeholder-slate-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-400 disabled:bg-slate-50"
+        />
+        <button
+          type="submit"
+          disabled={isAnswering || !question.trim() || !auditData.auditId}
+          className="absolute right-1.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-purple-600 text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Ask the evidence assistant"
+        >
+          {isAnswering ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+        </button>
+      </form>
+
+      {(result || isAnswering) && (
+        <div
+          className={`mt-4 rounded-xl border p-4 ${
+            resultIsWarning
+              ? 'border-amber-200 bg-amber-50/70'
+              : 'border-purple-100 bg-purple-50/50'
+          }`}
+        >
+          <div
+            className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${
+              resultIsWarning ? 'text-amber-800' : 'text-purple-800'
+            }`}
+          >
+            {resultIsWarning ? <AlertCircle size={13} /> : <Sparkles size={13} />}
+            <span>{askedTopic}</span>
+          </div>
+
+          {isAnswering ? (
+            <div className="flex items-center gap-2 py-1 text-sm text-slate-600">
+              <Loader2 size={16} className="animate-spin text-purple-600" />
+              <span>
+                {searchPhase === 'dossier'
+                  ? 'Searching existing evidence…'
+                  : 'Searching additional public sources if needed…'}
+              </span>
+            </div>
+          ) : result ? (
+            <div className="text-sm leading-relaxed text-slate-700">
+              <p>{result.answer}</p>
+              {result.additionalSearchPerformed && (
+                <p className="mt-2 text-[11px] font-bold text-purple-700">
+                  One targeted public-source search was used for this question.
+                </p>
+              )}
+
+              {result.citations.length > 0 && (
+                <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Sources
+                  </p>
+                  {result.citations.map((citation) => {
+                    const content = (
+                      <>
+                        <span className="min-w-0 flex-1 truncate">{citation.title}</span>
+                        <span className="shrink-0 text-[10px] uppercase text-slate-500">
+                          {citation.scope} scope
+                        </span>
+                        {citation.sourceUrl && <ExternalLink size={12} className="shrink-0" />}
+                      </>
+                    );
+
+                    return citation.sourceUrl ? (
+                      <a
+                        key={`assistant-source-${citation.evidenceId}-${citation.scope}`}
+                        href={citation.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:border-purple-300 hover:text-purple-700"
+                      >
+                        {content}
+                      </a>
+                    ) : (
+                      <div
+                        key={`assistant-source-${citation.evidenceId}-${citation.scope}`}
+                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                        title={citation.sourceDomain}
+                      >
+                        {content}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {result.status === 'answered' && (
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
+                  <CheckCircle2 size={12} />
+                  <span>
+                    Based on {result.citations.length}{' '}
+                    {result.citations.length === 1 ? 'supporting source' : 'supporting sources'}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 }
